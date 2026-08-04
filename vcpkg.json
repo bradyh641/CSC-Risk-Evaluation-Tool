@@ -1,0 +1,11 @@
+{
+  "name": "csc-revenue-concentration-project",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "nlohmann-json",
+    "openxlsx",
+    "tesseract",
+    "poppler",
+    "vincentlaucsb-csv-parser"
+  ]
+}

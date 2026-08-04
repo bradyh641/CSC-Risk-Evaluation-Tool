@@ -52,6 +52,10 @@ Makefile
 install_manifest.txt
 compile_commands.json
 
+# CLion Files
+.idea/
+cmake-build-*/
+
 # Temporary files
 *.tmp
 *.log
@@ -67,3 +71,6 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# temporary folders
+Release/
