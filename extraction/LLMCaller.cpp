@@ -28,7 +28,7 @@ static std::string loadAPIKEY(const std::string& filename) {
 RevenueResult LLMCaller::extractRevenue(const std::vector<AuditPage> &pages) {
     // get the API key from config.json before we prompt
     apiKey = loadAPIKEY("config.json");
-    std::cout << apiKey << std::endl;
+    // std::cout << apiKey << std::endl;
 
     // combines multipage audits into one string for prompt optimization
     std::string prompt = buildPrompt(pages);

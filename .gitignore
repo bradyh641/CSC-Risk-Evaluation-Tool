@@ -74,3 +74,6 @@ Testing/
 
 # temporary folders
 Release/
+
+# Output files
+SerializedMatches.txt

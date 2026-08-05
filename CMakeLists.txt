@@ -76,32 +76,21 @@ install(TARGETS CSCRiskEvalTool
 )
 
 #
-# Install runtime DLLs
+# Install DLLs from vcpkg and msys2
 #
-install(CODE [[
-    file(GET_RUNTIME_DEPENDENCIES
-        EXECUTABLES
-            "$<TARGET_FILE:CSCRiskEvalTool>"
+install(DIRECTORY
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"
+        DESTINATION .
+        FILES_MATCHING
+        PATTERN "*.dll"
+)
 
-        DIRECTORIES
-            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
-
-        RESOLVED_DEPENDENCIES_VAR RESOLVED_DLLS
-        UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DLLS
-    )
-
-    foreach(DLL ${RESOLVED_DLLS})
-        file(INSTALL
-            DESTINATION "${CMAKE_INSTALL_PREFIX}"
-            TYPE FILE
-            FILES "${DLL}"
-        )
-    endforeach()
-
-    if(UNRESOLVED_DLLS)
-        message(WARNING "Unresolved DLLs: ${UNRESOLVED_DLLS}")
-    endif()
-]])
+install(DIRECTORY
+        "C:/msys2/mingw64/bin/"
+        DESTINATION .
+        FILES_MATCHING
+        PATTERN "*.dll"
+)
 
 install(DIRECTORY
         ${CMAKE_SOURCE_DIR}/resources

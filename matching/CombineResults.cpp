@@ -132,7 +132,7 @@ void CombineResults::scanMemory(const std::vector<SAMISOrganization> &samis,
     // scan ../resources/SerializedMatches.txt for matches from the last run
     std::unordered_map<std::string, std::string> map;
     try {
-        map = loadMap("../resources/SerializedMatches.txt");
+        map = loadMap("resources/SerializedMatches.txt");
     } catch (std::runtime_error &e) {
         std::cerr << "No matches stored in memory." << std::endl;
     }

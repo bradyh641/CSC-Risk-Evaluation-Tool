@@ -105,7 +105,7 @@ std::vector<AuditPage> PDFParser::extractRelevantPages(const std::filesystem::pa
         */
         // here, specify a range of pages that it could be within so we don't have to OCR 50 pages
         // when we know its between like 5-15
-        if (OCR && pageText.size() <= 5 && pageCount >= 3 && pageCount <= 15) // very likely an image instead of text
+        if (OCR && pageText.size() <= 5 && i >= 2 && i <= 15) // very likely an image instead of text
         {
             // OCR fallback
             std::cout << "Running OCR..." << std::endl;
