@@ -77,6 +77,7 @@ install(TARGETS CSCRiskEvalTool
 
 #
 # Install DLLs from vcpkg and msys2
+# You will likely need to change the msys2 absolute path
 #
 install(DIRECTORY
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"

@@ -25,7 +25,7 @@ std::vector<SAMISOrganization> SheetScanner::scan() {
 
     try {
         csv::CSVFormat format;
-        format.header_row(3);
+        format.header_row(0);
 
         csv::CSVReader reader(filePath, format);
 
