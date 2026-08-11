@@ -104,29 +104,31 @@ void GenerateSpreadsheet::createWorkbook() {
         // unmatched samis should display the org name, program name, and program funding
         // unmatched audit should display the org name, revenue, and audit found
 
-        if (match.samisIndex == -1 && match.auditIndex != -1) {
-            // unmatched audit
-            // just display the organization name, revenue, and audit found
-            auto &audit = audits[match.auditIndex];
-            wks.cell(row, 1).value() = audit.first;
-            wks.cell(row, 2).value() = "N/A";
-            wks.cell(row, 3).value() = "N/A";
-
-            if (audit.second.found == NULL) {
-                // row 4 and 5 are N/A, row 6 is No, row 7 is N/A
-                wks.cell(row, 4).value() = "N/A";
-                wks.cell(row, 6).value() = "No";
-                wks.cell(row, 7).value() = "N/A";
-            } else {
-                wks.cell(row, 4).value() = toCurrency(audit.second.revenue);
-                wks.cell(row, 6).value() = "Yes";
-                wks.cell(row, 7).value() = audit.second.found ? "Yes" : "No";
-            }
-
-            wks.cell(row, 5).value() = "N/A"; // funding is unavailable
-
-            row += 2;
-        } else if (match.samisIndex != -1 && match.auditIndex == -1) {
+        // ignore unmatched audits
+        // if (match.samisIndex == -1 && match.auditIndex != -1) {
+            // // unmatched audit
+            // // just display the organization name, revenue, and audit found
+            // auto &audit = audits[match.auditIndex];
+            // wks.cell(row, 1).value() = audit.first;
+            // wks.cell(row, 2).value() = "N/A";
+            // wks.cell(row, 3).value() = "N/A";
+            //
+            // if (audit.second.found == NULL) {
+            //     // row 4 and 5 are N/A, row 6 is No, row 7 is N/A
+            //     wks.cell(row, 4).value() = "N/A";
+            //     wks.cell(row, 6).value() = "No";
+            //     wks.cell(row, 7).value() = "N/A";
+            // } else {
+            //     wks.cell(row, 4).value() = toCurrency(audit.second.revenue);
+            //     wks.cell(row, 6).value() = "Yes";
+            //     wks.cell(row, 7).value() = audit.second.found ? "Yes" : "No";
+            // }
+            //
+            // wks.cell(row, 5).value() = "N/A"; // funding is unavailable
+            //
+            // row += 2;
+        // }
+        if (match.samisIndex != -1 && match.auditIndex == -1) {
             // unmatched samis
             // iterate through programs and fundingList
             auto &sam = samis[match.samisIndex];
@@ -153,7 +155,8 @@ void GenerateSpreadsheet::createWorkbook() {
                 wks.cell(row, 5).value() = "N/A";
                 wks.cell(row, 6).value() = "N/A";
                 wks.cell(row, 7).value() = "N/A";
-            } else if (sam.programNames.size() == 1) {
+            }
+            else if (sam.programNames.size() == 1) {
                 wks.cell(row, 1).value() = sam.organizationName;
                 wks.cell(row, 2).value() = sam.programNames[0];
                 wks.cell(row, 3).value() = toCurrency(sam.totalFunding);
@@ -164,7 +167,8 @@ void GenerateSpreadsheet::createWorkbook() {
             }
 
             row += 2; // delimiter between orgs
-        } else if (match.samisIndex != -1 && match.auditIndex != -1) {
+        }
+        else if (match.samisIndex != -1 && match.auditIndex != -1) {
             // matched
 
             auto &sam = samis[match.samisIndex];
@@ -175,7 +179,8 @@ void GenerateSpreadsheet::createWorkbook() {
                     if (firstProg) {
                         firstProg = false;
                         wks.cell(row, 1).value() = sam.organizationName;
-                    } else
+                    }
+                    else
                         wks.cell(row, 1).value() = "";
                     wks.cell(row, 2).value() = sam.programNames[i];
                     wks.cell(row, 3).value() = toCurrency(sam.fundingList[i]);
@@ -195,13 +200,15 @@ void GenerateSpreadsheet::createWorkbook() {
                     wks.cell(row, 5).value() = "N/A";
                     wks.cell(row, 6).value() = "No";
                     wks.cell(row, 7).value() = "N/A";
-                } else {
+                }
+                else {
                     wks.cell(row, 4).value() = toCurrency(audit.second.revenue);
                     wks.cell(row, 5).value() = toPercentage((sam.totalFunding / audit.second.revenue));
                     wks.cell(row, 6).value() = "Yes";
                     wks.cell(row, 7).value() = audit.second.found ? "Yes" : "No";
                 }
-            } else if (sam.programNames.size() == 1) {
+            }
+            else if (sam.programNames.size() == 1) {
                 wks.cell(row, 1).value() = sam.organizationName;
                 wks.cell(row, 2).value() = sam.programNames[0];
                 wks.cell(row, 3).value() = toCurrency(sam.fundingList[0]);
@@ -212,7 +219,8 @@ void GenerateSpreadsheet::createWorkbook() {
                     wks.cell(row, 5).value() = "N/A";
                     wks.cell(row, 6).value() = "No";
                     wks.cell(row, 7).value() = "N/A";
-                } else {
+                }
+                else {
                     wks.cell(row, 4).value() = toCurrency(audit.second.revenue);
                     wks.cell(row, 5).value() = toPercentage((sam.totalFunding / audit.second.revenue));
                     wks.cell(row, 6).value() = "Yes";
@@ -221,8 +229,6 @@ void GenerateSpreadsheet::createWorkbook() {
             }
 
             row += 2;
-        } else {
-            std::cout << "SCRAPS" << std::endl; // just for curiosity
         }
     }
 

@@ -549,6 +549,7 @@ void MainWindow::startPressed() {
     SheetScanner sheetScan(samisPath);
     auto samisData = sheetScan.scan();
 
+    // Parse audits and feed into LLM
     loadingStep = loadingSteps::ReadingPDFs;
     std::cout << "Parsing Documents..." << std::endl;
     render();
