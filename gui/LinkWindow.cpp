@@ -56,9 +56,7 @@ void LinkWindow::processEvents() {
             sf::Event::Closed) {
             window.close();
         }
-
-
-        if (event.type ==
+        else if (event.type ==
             sf::Event::MouseButtonPressed) {
             handleMousePressed(
                 window.mapPixelToCoords(
@@ -66,9 +64,7 @@ void LinkWindow::processEvents() {
                 )
             );
         }
-
-
-        if (event.type ==
+        else if (event.type ==
             sf::Event::MouseButtonReleased) {
             handleMouseReleased(
                 window.mapPixelToCoords(
@@ -76,8 +72,7 @@ void LinkWindow::processEvents() {
                 )
             );
         }
-
-        if (event.type ==
+        else if (event.type ==
             sf::Event::MouseMoved) {
             handleMouseMoved(
                 window.mapPixelToCoords(
@@ -85,18 +80,18 @@ void LinkWindow::processEvents() {
                 )
             );
         }
-
-        if (event.type == sf::Event::MouseWheelScrolled) {
+        else if (event.type == sf::Event::MouseWheelScrolled) {
             handleMouseWheel(
                 window.mapPixelToCoords(
                     sf::Mouse::getPosition(window)),
                 event.mouseWheelScroll.delta
             );
         }
-        if (event.type == sf::Event::KeyPressed) {
+        else if (event.type == sf::Event::KeyPressed) {
             if (event.key.code == sf::Keyboard::Enter) {
                 createMatchFromSelection();
-            } else if (event.key.code == sf::Keyboard::Backspace ||
+            }
+            else if (event.key.code == sf::Keyboard::Backspace ||
                        event.key.code == sf::Keyboard::Delete) {
                 // del selected match if a match is selected
                 deleteMatch();
@@ -194,27 +189,29 @@ void LinkWindow::createMatchFromSelection() {
 }
 
 void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
-    auto findCard =
-            [&](auto &cards) {
+    auto findCard = [&](auto &cards) {
         for (auto &card: cards) {
-            if (card.contains(mouse)) {
+            if (card.contains(mouse) && card.isVisible) {
                 draggedCard = &card;
 
                 card.dragging = true;
 
                 card.offset = mouse - card.rectangle.getPosition();
 
-                // SUUUUPER shitty algo here. Rewrite when u can think
-                if (card.isSamis) {
-                    // if this card is samis
-                    if (matches[card.matchIndex].auditIndex != -1) {
-                        // matched; deselect all other cards and select this card and its counterpart
-                        for (auto c: cards) {
+                if (card.isSamis) { // if this card is samis
+                    if (matches[card.matchIndex].auditIndex != -1) { // matched; deselect all other cards and select this card and its counterpart
+                        for (auto c: matchedSamisCards) { // deselect all matched samis cards
                             c.selected = false;
                         }
-
-                        // find other by iterating through matchedAuditCards and matching the matchIndex
+                        for (auto c: unmatchedSamisCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedAuditCards) {
+                            c.selected = false;
+                        }
+                        // find other by iterating through matchedAuditCards and matching the matchIndex while deselecting all matched audit cards
                         for (int i = 0; i < matchedAuditCards.size(); i++) {
+                            matchedAuditCards[i].selected = false;
                             if (matchedAuditCards[i].matchIndex == card.matchIndex) {
                                 matchedAuditCards[i].selected = true;
                                 break;
@@ -223,8 +220,9 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
 
                         selectedSamisMatchIndex = card.matchIndex;
                         selectedAuditMatchIndex = card.matchIndex; // they have the same match index
-                    } else {
-                        // card is not matched, deselect all samis cards and matched audit cards
+                    }
+                    else {
+                        // samis card is not matched, deselect all samis cards and matched audit cards
                         for (auto c: unmatchedSamisCards) {
                             c.selected = false;
                         }
@@ -232,8 +230,7 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
                             c.selected = false;
                         }
                         for (auto c: matchedAuditCards) {
-                            if (c.matchIndex == selectedAuditMatchIndex) {
-                                // one of the matched values was selected
+                            if (c.matchIndex == selectedAuditMatchIndex) { // one of the matched values was selected, deselect it
                                 selectedAuditMatchIndex = -1;
                                 break;
                             }
@@ -241,15 +238,21 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
                         }
                         selectedSamisMatchIndex = card.matchIndex;
                     }
-                } else {
-                    // audit card
-                    if (matches[card.matchIndex].samisIndex != -1) {
-                        // if this is in matched, deselect all other cards and select this card and its counterpart
-                        for (auto c: cards) {
+                }
+                else { // audit card
+                    if (matches[card.matchIndex].samisIndex != -1) { // if this is in matched, deselect all other cards in matchedAuditCards and select this card and its counterpart
+                        for (auto c: matchedAuditCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedSamisCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedAuditCards) {
                             c.selected = false;
                         }
                         // find other by iterating through matchedSamisCards and matching the matchIndex
                         for (int i = 0; i < matchedSamisCards.size(); i++) {
+                            matchedSamisCards[i].selected = false;
                             if (matchedSamisCards[i].matchIndex == card.matchIndex) {
                                 matchedSamisCards[i].selected = true;
                                 break;
@@ -258,7 +261,8 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
 
                         selectedSamisMatchIndex = card.matchIndex;
                         selectedAuditMatchIndex = card.matchIndex; // they have the same match index
-                    } else {
+                    }
+                    else {
                         // card is not matched, deselect all audit cards, and all matched samis cards
                         for (auto c: unmatchedAuditCards) {
                             c.selected = false;
@@ -267,8 +271,7 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
                             c.selected = false;
                         }
                         for (auto c: matchedSamisCards) {
-                            if (c.matchIndex == selectedSamisMatchIndex) {
-                                // one of the matched values was selected
+                            if (c.matchIndex == selectedSamisMatchIndex) { // one of the matched values was selected
                                 selectedSamisMatchIndex = -1;
                                 break;
                             }
@@ -333,19 +336,13 @@ void LinkWindow::handleMouseReleased(sf::Vector2f mouse) {
     if (draggedCard == nullptr)
         return;
 
-
     draggedCard->dragging = false;
-
 
     OrganizationCard *targetCard = nullptr;
 
-
-    auto findTarget =
-            [&](auto &cards) {
+    auto findTarget = [&](auto &cards) {
         for (auto &card: cards) {
-            if (&card != draggedCard &&
-                card.isVisible &&
-                card.contains(mouse)) {
+            if (card.contains(mouse) && &card != draggedCard && card.isVisible) {
                 targetCard = &card;
                 return true;
             }
@@ -591,7 +588,6 @@ void LinkWindow::drawMatchedColumns() {
 
     window.draw(leftTitle);
 
-
     sf::Text rightTitle;
     rightTitle.setFont(font);
     rightTitle.setFillColor(sf::Color(40, 40, 40));
@@ -785,17 +781,11 @@ void LinkWindow::drawUnmatchedBoxes() {
 }
 
 void LinkWindow::drawCards() {
-    // doesn't work for matches because of mixed names
-    // alphabetize
-    // std::sort(unmatchedSamisCards.begin(), unmatchedSamisCards.end());
-    // std::sort(unmatchedAuditCards.begin(), unmatchedAuditCards.end());
-    // std::sort(matchedSamisCards.begin(), matchedSamisCards.end());
-    // std::sort(matchedAuditCards.begin(), matchedAuditCards.end());
 
-    for (auto &card: unmatchedAuditCards) {
+    for (auto& card: unmatchedAuditCards) {
         if (card.rectangle.getPosition().y <= 810 && card.rectangle.getPosition().y >= 600) {
             window.draw(card.rectangle);
-            card.setVisible(true);
+            card.isVisible = true;
             if (card.text.getString().getSize() > 38) {
                 std::string tempFullStr = card.text.getString();
                 card.text.setString(tempFullStr.substr(0, 38) + "...");
@@ -806,10 +796,10 @@ void LinkWindow::drawCards() {
         } else
             card.isVisible = false;
     }
-    for (auto card: unmatchedSamisCards) {
-        if (card.rectangle.getPosition().y <= 810 && card.rectangle.getPosition().y >= 600) {
+    for (auto& card: unmatchedSamisCards) {
+         if (card.rectangle.getPosition().y <= 810 && card.rectangle.getPosition().y >= 600) {
             window.draw(card.rectangle);
-            card.setVisible(true);
+            card.isVisible = true;
             if (card.text.getString().getSize() > 38) {
                 std::string tempFullStr = card.text.getString();
                 card.text.setString(tempFullStr.substr(0, 38) + "...");
@@ -820,24 +810,26 @@ void LinkWindow::drawCards() {
         } else
             card.isVisible = false;
     }
-    for (auto card: matchedAuditCards) {
+    for (auto& card: matchedAuditCards) {
         if (card.rectangle.getPosition().y <= 500 && card.rectangle.getPosition().y >= 90) {
             window.draw(card.rectangle);
-            card.setVisible(true);
+            card.isVisible = true;
             if (card.text.getString().getSize() > 38) {
                 std::string tempFullStr = card.text.getString();
                 card.text.setString(tempFullStr.substr(0, 38) + "...");
                 window.draw(card.text);
                 card.text.setString(tempFullStr);
-            } else
+            }
+            else
                 window.draw(card.text);
-        } else
+        }
+        else
             card.isVisible = false;
     }
-    for (auto card: matchedSamisCards) {
+    for (auto& card: matchedSamisCards) {
         if (card.rectangle.getPosition().y <= 500 && card.rectangle.getPosition().y >= 90) {
             window.draw(card.rectangle);
-            card.setVisible(true);
+            card.isVisible = true;
             if (card.text.getString().getSize() > 38) {
                 std::string tempFullStr = card.text.getString();
                 card.text.setString(tempFullStr.substr(0, 38) + "...");
@@ -845,7 +837,8 @@ void LinkWindow::drawCards() {
                 card.text.setString(tempFullStr);
             } else
                 window.draw(card.text);
-        } else
+        }
+        else
             card.isVisible = false;
     }
 }

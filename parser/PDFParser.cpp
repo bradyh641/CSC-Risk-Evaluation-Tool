@@ -105,19 +105,22 @@ std::vector<AuditPage> PDFParser::extractRelevantPages(const std::filesystem::pa
         */
         // here, specify a range of pages that it could be within so we don't have to OCR 50 pages
         // when we know its between like 5-15
-        if (OCR && pageText.size() <= 5 && i >= 2 && i <= 15) // very likely an image instead of text
-        {
+        if (OCR && pageText.size() <= 5 && i >= 2 && i <= 20) { // very likely an image instead of text
             // OCR fallback
             std::cout << "Running OCR..." << std::endl;
             pageText = performOCR(page);
         }
 
+        // if its not table of contents, is likely the Statement of Activities or Statement of Revenues, Expenses, and Net Position, is not the Statement of Cash Flows, and is not Notes
         if (
             (pageText.find("TABLE OF CONTENTS") == std::string::npos &&
              pageText.find("Table of Contents") == std::string::npos)
             &&
             (pageText.find("ACTIVITIES") != std::string::npos ||
-             pageText.find("Activities") != std::string::npos)
+             pageText.find("Activities") != std::string::npos ||
+             (pageText.find("Revenues") != std::string::npos &&
+            pageText.find("Expenses") != std::string::npos) &&
+            pageText.find("Changes") != std::string::npos)
             &&
             (pageText.find("Cash Flows") == std::string::npos &&
              pageText.find("CASH FLOWS") == std::string::npos)

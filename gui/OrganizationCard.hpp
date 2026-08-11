@@ -27,10 +27,6 @@ struct OrganizationCard
             .contains(point);
     }
 
-    void setVisible(const bool& b) {
-        isVisible = b;
-    }
-
     void setPosition(sf::Vector2f position)
     {
         rectangle.setPosition(position);

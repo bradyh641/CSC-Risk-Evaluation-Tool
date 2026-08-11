@@ -64,20 +64,6 @@ std::string LLMCaller::sendRequest(const std::string &prompt) {
     // Build JSON body
     json body;
 
-    /*
-    *"You are extracting data from an independent audit.\n"
-        "Return ONLY valid JSON.\n"
-        "Find the total revenue for the most recent year listed, typically listed as "
-        "'total revenue' or 'total support and revenue'.\n"
-        "Rules:\n"
-        "- Return the total only.\n"
-        "- Ignore subtotals.\n"
-        "- Ignore prior-year values.\n"
-        "- Ignore notes.\n"
-        "- If no value exists, return null.\n\n"
-        "Page:\n";
-     */
-
     body["model"] = "openai/gpt-5-mini";
     body["messages"] = json::array({
         {
@@ -85,17 +71,26 @@ std::string LLMCaller::sendRequest(const std::string &prompt) {
             {
                 "content",
                 "You are extracting data from an independent audit.\n"
-                "Find the total revenue for the most recent year listed, typically listed as 'total revenue' or"
-                "'total support and revenue'.\n"
-                "Return ONLY valid JSON in this format:\n"
-                "{\n\"value\": number|null,\n\"confidence\": number\n}\n"
-                "Rules:\n"
-                "- Use the final total revenue/support and revenue.\n"
-                "- Ignore subtotals.\n"
-                "- Ignore notes.\n"
-                "- Ignore prior-year columns.\n"
-                "- If no value exists, return null.\n\n"
-                "Document:\n" + prompt
+                    "Find the total revenue for the most recent year listed, typically listed as 'total revenue' or "
+                    "'total support and revenue'.\n"
+                    "Return ONLY valid JSON in this format:\n"
+                    "{\n"
+                    "\"value\": number|null,\n"
+                    "\"confidence\": number\n"
+                    "}\n"
+                    "Rules:\n"
+                    "- Use the final total revenue/support and revenue value(s).\n"
+                    "- Ignore subtotals.\n"
+                    "- Ignore notes.\n"
+                    "- Ignore prior-year columns.\n"
+                    "- If both a 'consolidated total' column and a 'total' column are present, prioritize the 'consolidated total' column.\n"
+                    "- If there are operating and non-operating revenues, return the sum of these two values in the 'College' column.\n"
+                    "- Check the top of the page for a statement indicating that dollar amounts are reported in thousands, millions, or a similar unit.\n"
+                    "- If the document states that dollar amounts are in thousands, multiply the extracted value by 1000.\n"
+                    "- If the document states that dollar amounts are in millions, multiply the extracted value by 1000000.\n"
+                    "- Apply the unit multiplier before returning the final value.\n"
+                    "- If no value exists, return null.\n\n"
+                    "Document:\n" + prompt
             }
         }
     });
