@@ -27,10 +27,12 @@ void LinkWindow::run() {
     // instructions
     MessageBoxA(
         window.getSystemHandle(),
-        "Your job is to make sure that all the organization names from the SAMIS file are correctly matched with organization names from the CSC Organizations folder."
-        " The top two boxes represent organization names that are already matched together. You can drag a card from an unmatched box to a matched name to swap the names."
-        " You can also press Backspace or Delete on your keyboard to unmatch the selected names. Select an unmatched audit file and an unmatched SAMIS file and press enter"
-        " to create a new match. When all organization names are correctly matched, press the \"Generate Spreadsheet\" button.",
+        "Your goal is to make sure every organization from the SAMIS file is correctly matched with its corresponding organization from the CSC Organizations folder.\n\n"
+            "Matched Organizations: The two boxes at the top contain organizations that are already matched. To change a match, drag an organization card from an unmatched box onto a matched organization or a card from a matched organization onto a card in an unmatched box.\n\n"
+            "Unmatch Organizations: Select a matched organization and press Backspace or Delete to remove the match.\n\n"
+            "Create a New Match: Select one organization from the SAMIS unmatched box and one organization from the Audit unmatched box, then press Enter to create a match.\n\n"
+            "Finish: Once all organizations are correctly matched, click Generate Spreadsheet.\n\n"
+            "Take a moment to verify that all matches are correct before generating the spreadsheet.",
         "INSTRUCTIONS",
         MB_OK | MB_ICONINFORMATION
     );
