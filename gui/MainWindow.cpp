@@ -549,43 +549,18 @@ void MainWindow::startPressed() {
     SheetScanner sheetScan(samisPath);
     auto samisData = sheetScan.scan();
 
-    // Parse audits and feed into LLM
-    loadingStep = loadingSteps::ReadingPDFs;
-    std::cout << "Parsing Documents..." << std::endl;
-    render();
-    std::vector<std::pair<std::string, RevenueResult> > results;
-    PDFParser parser;
-    LLMCaller llm;
-    for (auto &audit: audits) {
-        if (audit.status != AuditStatus::Found) {
-            results.push_back({audit.organizationName, {0, 0, NULL}});
-            continue;
-        }
-
-        auto pages = parser.extractRelevantPages(audit.auditFile, false); // w/o OCR
-        if (pages.empty())
-            pages = parser.extractRelevantPages(audit.auditFile, true); // run OCR
-
-        auto result = llm.extractRevenue(pages);
-
-        // store result
-        results.push_back({audit.organizationName, result});
-        // results.push_back({audit.organizationName, {1234567,.90,true}}); // testing
-    }
-
     std::cout << "Checking memory and consolidating data..." << std::endl;
-    loadingStep = loadingSteps::Matching;
     render();
     organizationMatches =
             CombineResults::matchOrganizations(
                 samisData,
-                results
+                audits
             );
 
     std::cout << "Booting Link Window..." << std::endl;
     LinkWindow linkWindow(
         samisData,
-        results,
+        audits,
         organizationMatches,
         auditYear
     );

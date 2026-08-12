@@ -10,6 +10,9 @@
 #include "../scanner/SheetScanner.hpp"
 #include "../extraction/LLMCaller.hpp"
 #include "OrganizationCard.hpp"
+#include "../scanner/FileScanner.hpp"
+#include "../excel/GenerateSpreadsheet.hpp"
+
 
 class LinkWindow
 {
@@ -17,7 +20,7 @@ public:
 
     LinkWindow(
         const std::vector<SAMISOrganization>& samis,
-        const std::vector<std::pair<std::string, RevenueResult>>& audits,
+        const std::vector<OrganizationAudit> &audits,
         std::vector<OrganizationMatch>& matches,
         const std::string& year
     );
@@ -49,7 +52,7 @@ private:
     std::string year;
 
     const std::vector<SAMISOrganization>& samis;
-    const std::vector<std::pair<std::string, RevenueResult>>& audits;
+    const std::vector<OrganizationAudit>& audits;
 
     std::vector<OrganizationMatch>& matches;
 

@@ -5,27 +5,13 @@
 #include <windows.h>
 #include <fstream>
 
-#include "OrganizationCard.hpp"
-#include "../excel/GenerateSpreadsheet.hpp"
-
 LinkWindow::LinkWindow(
     const std::vector<SAMISOrganization> &samis,
-    const std::vector<std::pair<std::string, RevenueResult> > &audits,
+    const std::vector<OrganizationAudit> &audits,
     std::vector<OrganizationMatch> &matches,
     const std::string &year) : window(sf::VideoMode({1400, 900}), "Link Organizations"),
                                samis(samis), audits(audits), matches(matches), year(year) {
     font.loadFromFile("resources/font.ttf");
-
-    // instructions
-    MessageBoxA(
-        window.getSystemHandle(),
-        "Your job is to make sure that all the organization names from the SAMIS file are correctly matched with organization names from the CSC Organizations folder."
-        " The top two boxes represent organization names that are already matched together. You can drag a card from an unmatched box to a matched name to swap the names."
-        " You can also press Backspace or Delete on your keyboard to unmatch the selected names. Select an unmatched audit file and an unmatched SAMIS file and press enter"
-        " to create a new match. When all organization names are correctly matched, press the \"Generate Spreadsheet\" button.",
-        "INSTRUCTIONS",
-        MB_OK | MB_ICONINFORMATION
-    );
 
     // create generateButton
     generateButton.setSize({280.f, 70.f});
@@ -38,6 +24,17 @@ LinkWindow::LinkWindow(
 }
 
 void LinkWindow::run() {
+    // instructions
+    MessageBoxA(
+        window.getSystemHandle(),
+        "Your job is to make sure that all the organization names from the SAMIS file are correctly matched with organization names from the CSC Organizations folder."
+        " The top two boxes represent organization names that are already matched together. You can drag a card from an unmatched box to a matched name to swap the names."
+        " You can also press Backspace or Delete on your keyboard to unmatch the selected names. Select an unmatched audit file and an unmatched SAMIS file and press enter"
+        " to create a new match. When all organization names are correctly matched, press the \"Generate Spreadsheet\" button.",
+        "INSTRUCTIONS",
+        MB_OK | MB_ICONINFORMATION
+    );
+
     while (window.isOpen()) {
         processEvents();
 
@@ -130,7 +127,7 @@ void LinkWindow::saveMatches() {
         auto sam = samis[match.samisIndex];
         auto audit = audits[match.auditIndex];
 
-        map[sam.organizationName] = audit.first; // think this works
+        map[sam.organizationName] = audit.organizationName; // think this works
     }
 
     // now that map is populated with the final matches, save in txt file
@@ -298,8 +295,41 @@ void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
         std::cout << "Saving matches to memory..." << std::endl;
         saveMatches();
 
+        // Parse audits and feed into LLM
+        // loadingStep = loadingSteps::ReadingPDFs;
+        std::cout << "Parsing Documents..." << std::endl;
+        render();
+        std::vector<std::pair<std::string, RevenueResult>> results;
+        PDFParser parser;
+        LLMCaller llm;
+        for (int i = 0; i < audits.size(); i++) {
+
+            // for each of these audits, find their matched samisIndex. Iterate through matches until i matches j
+            int j = 0;
+            for (;j < matches.size(); j++) {
+                if (matches[j].auditIndex == i) {
+                    break;
+                }
+            }
+
+            if (audits[i].status != AuditStatus::Found || matches[j].samisIndex == -1) {
+                results.push_back({audits[i].organizationName, {0, 0, NULL}});
+                continue;
+            }
+
+            auto pages = parser.extractRelevantPages(audits[i].auditFile, false); // w/o OCR
+            if (pages.empty())
+                pages = parser.extractRelevantPages(audits[i].auditFile, true); // run OCR
+
+            auto result = llm.extractRevenue(pages);
+
+            // store result
+            results.push_back({audits[i].organizationName, result});
+            // results.push_back({audits[i].organizationName, {1234567,.90,true}}); // testing
+        }
+
         std::cout << "Generating Spreadsheet..." << std::endl;
-        GenerateSpreadsheet(samis, audits, matches, year);
+        GenerateSpreadsheet(samis, results, matches, year);
 
         return;
     }
@@ -913,8 +943,7 @@ void LinkWindow::createCards() {
             right.text.setFillColor(sf::Color(40, 40, 40));
             right.text.setCharacterSize(18);
 
-            right.text.setString(
-                audits[match.auditIndex].first);
+            right.text.setString(audits[match.auditIndex].organizationName);
 
 
             matchedAuditCards.push_back(right);
@@ -983,8 +1012,7 @@ void LinkWindow::createCards() {
             card.text.setFillColor(sf::Color(40, 40, 40));
             card.text.setCharacterSize(18);
 
-            card.text.setString(
-                audits[match.auditIndex].first);
+            card.text.setString(audits[match.auditIndex].organizationName);
 
             unmatchedAuditCards.push_back(card);
         }

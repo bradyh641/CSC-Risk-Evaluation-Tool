@@ -4,6 +4,7 @@
 
 #include "../scanner/SheetScanner.hpp"
 #include "../extraction/LLMCaller.hpp"
+#include "../scanner/FileScanner.hpp"
 
 struct OrganizationMatch
 {
@@ -22,7 +23,7 @@ public:
 
     static std::vector<OrganizationMatch> matchOrganizations(
         const std::vector<SAMISOrganization>& samis,
-        const std::vector<std::pair<std::string, RevenueResult>>& audits
+        const std::vector<OrganizationAudit>& audits
     );
 
 private:
@@ -30,7 +31,7 @@ private:
     static std::string normalizeName(const std::string& name);
 
     static void scanMemory(const std::vector<SAMISOrganization>& samis,
-        const std::vector<std::pair<std::string, RevenueResult>>& audits, std::vector<OrganizationMatch>& matches,
+        const std::vector<OrganizationAudit>& audits, std::vector<OrganizationMatch>& matches,
         std::vector<bool>& samisMatched, std::vector<bool>& auditMatched);
 
     static double similarityScore(

@@ -126,7 +126,7 @@ std::unordered_map<std::string, std::string> loadMap(const std::string &filename
 }
 
 void CombineResults::scanMemory(const std::vector<SAMISOrganization> &samis,
-                                const std::vector<std::pair<std::string, RevenueResult> > &audits,
+                                const std::vector<OrganizationAudit> &audits,
                                 std::vector<OrganizationMatch> &matches,
                                 std::vector<bool> &samisMatched, std::vector<bool> &auditMatched) {
     // scan ../resources/SerializedMatches.txt for matches from the last run
@@ -146,7 +146,7 @@ void CombineResults::scanMemory(const std::vector<SAMISOrganization> &samis,
             // iterate through audits until we find the matching name
             std::string auditName = map[samis[i].organizationName];
             for (int j = 0; j < audits.size(); ++j) {
-                if (audits[j].first == auditName) {
+                if (audits[j].organizationName == auditName) {
                     // both of these samis and audit names exist in the current run. Add them to matches
                     OrganizationMatch newMatch;
                     newMatch.samisIndex = i;
@@ -167,7 +167,7 @@ void CombineResults::scanMemory(const std::vector<SAMISOrganization> &samis,
 std::vector<OrganizationMatch>
 CombineResults::matchOrganizations(
     const std::vector<SAMISOrganization> &samis,
-    const std::vector<std::pair<std::string, RevenueResult> > &audits) {
+    const std::vector<OrganizationAudit> &audits) {
     std::vector<OrganizationMatch> matches;
 
     std::vector<bool> samisMatched(
@@ -187,20 +187,15 @@ CombineResults::matchOrganizations(
         double bestScore = 0.0;
         int bestAudit = -1;
 
-        std::string samisName =
-                normalizeName(
-                    samis[i].organizationName);
+        std::string samisName = normalizeName(samis[i].organizationName);
 
         for (size_t j = 0; j < audits.size(); j++) {
             if (auditMatched[j])
                 continue;
 
-            std::string auditName = normalizeName(audits[j].first);
+            std::string auditName = normalizeName(audits[j].organizationName);
 
-            double score =
-                    similarityScore(
-                        samisName,
-                        auditName);
+            double score = similarityScore(samisName, auditName);
 
             if (score > bestScore) {
                 bestScore = score;
