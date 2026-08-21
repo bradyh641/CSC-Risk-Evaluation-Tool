@@ -1,0 +1,1051 @@
+#include "LinkWindow.hpp"
+
+#include <iostream>
+#include <unordered_map>
+#include <windows.h>
+#include <fstream>
+
+LinkWindow::LinkWindow(
+    const std::vector<FundingOrganization> &funding,
+    const std::vector<OrganizationAudit> &audits,
+    std::vector<OrganizationMatch> &matches,
+    const std::string &year) : window(sf::VideoMode({1400, 900}), "Link Organizations"),
+                               funding(funding), audits(audits), matches(matches), year(year) {
+    font.loadFromFile("resources/font.ttf");
+
+    // create generateButton
+    generateButton.setSize({280.f, 70.f});
+    generateButton.setPosition({560.f, 690.f});
+    generateButton.setFillColor(sf::Color(35, 98, 181));
+    generateButton.setOutlineThickness(2.f);
+    generateButton.setOutlineColor(sf::Color(25, 80, 180));
+
+    createCards();
+}
+
+void LinkWindow::run() {
+    // instructions
+    MessageBoxA(
+        window.getSystemHandle(),
+        "Your goal is to make sure every organization from the CSV funding file is correctly matched with its corresponding organization from the CSC Organizations folder.\n\n"
+            "Matched Organizations: The two boxes at the top contain organizations that are already matched. To change a match, drag an organization card from an unmatched box onto a matched organization or a card from a matched organization onto a card in an unmatched box.\n\n"
+            "Unmatch Organizations: Select a matched organization and press Backspace or Delete to remove the match.\n\n"
+            "Create a New Match: Select one organization from the Funding unmatched box and one organization from the Audit unmatched box, then press Enter to create a match.\n\n"
+            "Finish: Once all organizations are correctly matched, click Generate Spreadsheet.\n\n"
+            "Take a moment to verify that all matches are correct before generating the spreadsheet.",
+        "INSTRUCTIONS",
+        MB_OK | MB_ICONINFORMATION
+    );
+
+    while (window.isOpen()) {
+        processEvents();
+
+        // update();
+
+        render();
+    }
+}
+
+void LinkWindow::processEvents() {
+    sf::Event event;
+
+
+    while (window.pollEvent(event)) {
+        if (event.type ==
+            sf::Event::Closed) {
+            window.close();
+        }
+        else if (event.type ==
+            sf::Event::MouseButtonPressed) {
+            handleMousePressed(
+                window.mapPixelToCoords(
+                    sf::Mouse::getPosition(window)
+                )
+            );
+        }
+        else if (event.type ==
+            sf::Event::MouseButtonReleased) {
+            handleMouseReleased(
+                window.mapPixelToCoords(
+                    sf::Mouse::getPosition(window)
+                )
+            );
+        }
+        else if (event.type ==
+            sf::Event::MouseMoved) {
+            handleMouseMoved(
+                window.mapPixelToCoords(
+                    sf::Mouse::getPosition(window)
+                )
+            );
+        }
+        else if (event.type == sf::Event::MouseWheelScrolled) {
+            handleMouseWheel(
+                window.mapPixelToCoords(
+                    sf::Mouse::getPosition(window)),
+                event.mouseWheelScroll.delta
+            );
+        }
+        else if (event.type == sf::Event::KeyPressed) {
+            if (event.key.code == sf::Keyboard::Enter) {
+                createMatchFromSelection();
+            }
+            else if (event.key.code == sf::Keyboard::Backspace ||
+                       event.key.code == sf::Keyboard::Delete) {
+                // del selected match if a match is selected
+                deleteMatch();
+            }
+        }
+    }
+}
+
+static void saveMap(const std::unordered_map<std::string, std::string> &map, const std::string &filename) {
+    std::ofstream file(filename, std::ios::binary);
+
+    if (!file)
+        throw std::runtime_error("Failed to open file.");
+
+    size_t count = map.size();
+    file.write(reinterpret_cast<const char *>(&count), sizeof(count));
+
+    for (const auto &[key, value]: map) {
+        size_t keyLength = key.size();
+        file.write(reinterpret_cast<const char *>(&keyLength), sizeof(keyLength));
+        file.write(key.data(), keyLength);
+
+        size_t valueLength = value.size();
+        file.write(reinterpret_cast<const char *>(&valueLength), sizeof(valueLength));
+        file.write(value.data(), valueLength);
+    }
+}
+
+void LinkWindow::saveMatches() {
+    // generate unordered map of funding orgs to audit orgs
+    std::unordered_map<std::string, std::string> map;
+    for (auto &match: matches) {
+        if (match.auditIndex == -1 || match.fundingIndex == -1)
+            continue;
+
+        auto sam = funding[match.fundingIndex];
+        auto audit = audits[match.auditIndex];
+
+        map[sam.organizationName] = audit.organizationName; // think this works
+    }
+
+    // now that map is populated with the final matches, save in txt file
+    saveMap(map, "resources/SerializedMatches.txt");
+}
+
+void LinkWindow::deleteMatch() {
+    if (selectedFundingMatchIndex != selectedAuditMatchIndex ||
+        selectedFundingMatchIndex == -1 || selectedAuditMatchIndex == -1) // will only be false when a match is selected
+        return;
+
+    // "delete" this match and put them back to their respective unmatched boxes
+    // make a new OrganizationMatch and swap the value of one's audit/funding index with the other?
+
+    auto &currMatch = matches[selectedFundingMatchIndex];
+
+    OrganizationMatch newAuditMatch;
+    newAuditMatch.auditIndex = matches[selectedFundingMatchIndex].auditIndex;
+    newAuditMatch.userModified = true;
+    matches.push_back(newAuditMatch);
+
+    currMatch.auditIndex = -1;
+    currMatch.userModified = true;
+
+    selectedAuditMatchIndex = matches.size() - 1; // should point to newAuditMatch since we push_back
+
+    createCards();
+}
+
+void LinkWindow::createMatchFromSelection() {
+    if ((selectedFundingMatchIndex == -1 || selectedAuditMatchIndex == -1) ||
+        (selectedFundingMatchIndex == selectedAuditMatchIndex)) {
+        return;
+    }
+
+    auto &fundingMatch =
+            matches[selectedFundingMatchIndex];
+
+    auto &auditMatch =
+            matches[selectedAuditMatchIndex];
+
+    fundingMatch.auditIndex =
+            auditMatch.auditIndex;
+
+    auditMatch.auditIndex = -1;
+
+    fundingMatch.userModified = true;
+    auditMatch.userModified = true;
+
+    // this is where we could remove auditMatch from matches
+    matches.erase(matches.begin() + selectedAuditMatchIndex);
+
+    selectedAuditMatchIndex = selectedFundingMatchIndex;
+
+    createCards();
+}
+
+void LinkWindow::handleMousePressed(sf::Vector2f mouse) {
+    auto findCard = [&](auto &cards) {
+        for (auto &card: cards) {
+            if (card.contains(mouse) && card.isVisible) {
+                draggedCard = &card;
+
+                card.dragging = true;
+
+                card.offset = mouse - card.rectangle.getPosition();
+
+                if (card.isFunding) { // if this card is funding
+                    if (matches[card.matchIndex].auditIndex != -1) { // matched; deselect all other cards and select this card and its counterpart
+                        for (auto c: matchedFundingCards) { // deselect all matched funding cards
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedFundingCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedAuditCards) {
+                            c.selected = false;
+                        }
+                        // find other by iterating through matchedAuditCards and matching the matchIndex while deselecting all matched audit cards
+                        for (int i = 0; i < matchedAuditCards.size(); i++) {
+                            matchedAuditCards[i].selected = false;
+                            if (matchedAuditCards[i].matchIndex == card.matchIndex) {
+                                matchedAuditCards[i].selected = true;
+                                break;
+                            }
+                        }
+
+                        selectedFundingMatchIndex = card.matchIndex;
+                        selectedAuditMatchIndex = card.matchIndex; // they have the same match index
+                    }
+                    else {
+                        // Funding card is not matched, deselect all funding cards and matched audit cards
+                        for (auto c: unmatchedFundingCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: matchedFundingCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: matchedAuditCards) {
+                            if (c.matchIndex == selectedAuditMatchIndex) { // one of the matched values was selected, deselect it
+                                selectedAuditMatchIndex = -1;
+                                break;
+                            }
+                            c.selected = false;
+                        }
+                        selectedFundingMatchIndex = card.matchIndex;
+                    }
+                }
+                else { // audit card
+                    if (matches[card.matchIndex].fundingIndex != -1) { // if this is in matched, deselect all other cards in matchedAuditCards and select this card and its counterpart
+                        for (auto c: matchedAuditCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedFundingCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: unmatchedAuditCards) {
+                            c.selected = false;
+                        }
+                        // find other by iterating through matchedFundingCards and matching the matchIndex
+                        for (int i = 0; i < matchedFundingCards.size(); i++) {
+                            matchedFundingCards[i].selected = false;
+                            if (matchedFundingCards[i].matchIndex == card.matchIndex) {
+                                matchedFundingCards[i].selected = true;
+                                break;
+                            }
+                        }
+
+                        selectedFundingMatchIndex = card.matchIndex;
+                        selectedAuditMatchIndex = card.matchIndex; // they have the same match index
+                    }
+                    else {
+                        // card is not matched, deselect all audit cards, and all matched funding cards
+                        for (auto c: unmatchedAuditCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: matchedAuditCards) {
+                            c.selected = false;
+                        }
+                        for (auto c: matchedFundingCards) {
+                            if (c.matchIndex == selectedFundingMatchIndex) { // one of the matched values was selected
+                                selectedFundingMatchIndex = -1;
+                                break;
+                            }
+                            c.selected = false;
+                        }
+                        selectedAuditMatchIndex = card.matchIndex;
+                    }
+                }
+                card.selected = true;
+
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    // std::cout << mouse.x << ", " << mouse.y << std::endl;
+
+    if (generateButton.getGlobalBounds().contains(mouse)) {
+        // Generate the spreadsheet. Call the spreadsheet
+        window.close();
+
+        std::cout << "Saving matches to memory..." << std::endl;
+        saveMatches();
+
+        // Parse audits and feed into LLM
+        // loadingStep = loadingSteps::ReadingPDFs;
+        std::cout << "Parsing Documents..." << std::endl;
+        render();
+        std::vector<std::pair<std::string, RevenueResult>> results;
+        PDFParser parser;
+        LLMCaller llm;
+        for (int i = 0; i < audits.size(); i++) {
+
+            // for each of these audits, find their matched fundingIndex. Iterate through matches until i matches j
+            int j = 0;
+            for (;j < matches.size(); j++) {
+                if (matches[j].auditIndex == i) {
+                    break;
+                }
+            }
+
+            if (audits[i].status != AuditStatus::Found || matches[j].fundingIndex == -1) {
+                results.push_back({audits[i].organizationName, {0, 0, NULL}});
+                continue;
+            }
+
+            auto pages = parser.extractRelevantPages(audits[i].auditFile, false); // w/o OCR
+            if (pages.empty())
+                pages = parser.extractRelevantPages(audits[i].auditFile, true); // run OCR
+
+            auto result = llm.extractRevenue(pages);
+
+            // store result
+            results.push_back({audits[i].organizationName, result});
+            // results.push_back({audits[i].organizationName, {1234567,.90,true}}); // testing
+        }
+
+        std::cout << "Generating Spreadsheet..." << std::endl;
+        GenerateSpreadsheet(funding, results, matches, year);
+
+        return;
+    }
+
+    if (findCard(unmatchedFundingCards))
+        return;
+
+    if (findCard(unmatchedAuditCards))
+        return;
+
+    if (findCard(matchedFundingCards))
+        return;
+
+    if (findCard(matchedAuditCards))
+        return;
+}
+
+void LinkWindow::handleMouseMoved(
+    sf::Vector2f mouse) {
+    if (draggedCard == nullptr)
+        return;
+
+    // std::cout << "dragging" << std::endl;
+    draggedCard->setPosition(
+        mouse -
+        draggedCard->offset);
+}
+
+void LinkWindow::handleMouseReleased(sf::Vector2f mouse) {
+    if (draggedCard == nullptr)
+        return;
+
+    draggedCard->dragging = false;
+
+    OrganizationCard *targetCard = nullptr;
+
+    auto findTarget = [&](auto &cards) {
+        for (auto &card: cards) {
+            if (card.contains(mouse) && &card != draggedCard && card.isVisible) {
+                targetCard = &card;
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+
+    bool foundTarget =
+            findTarget(matchedFundingCards) ||
+            findTarget(matchedAuditCards) ||
+            findTarget(unmatchedFundingCards) ||
+            findTarget(unmatchedAuditCards);
+
+    // std::cout << foundTarget << std::endl;
+
+    if (foundTarget && targetCard != nullptr) {
+        if (draggedCard->matchIndex < 0 ||
+            targetCard->matchIndex < 0) {
+            draggedCard = nullptr;
+            createCards();
+            return;
+        }
+
+
+        auto &source =
+                matches[draggedCard->matchIndex];
+
+
+        auto &destination =
+                matches[targetCard->matchIndex];
+
+        swapCards(*draggedCard, *targetCard);
+    }
+
+
+    draggedCard = nullptr;
+
+
+    createCards();
+}
+
+// change these hardcoded bounds to be set to the boxes bounds.
+// Make the sf::RectangleShapes part of the obj and initialize in constructor like generate button
+void LinkWindow::handleMouseWheel(
+    sf::Vector2f mouse,
+    float delta) {
+    float scrollSpeed = 40.f;
+
+
+    if (mouse.x >= 40 &&
+        mouse.x <= 1360 &&
+        mouse.y >= 80 &&
+        mouse.y <= 530) {
+        matchedScrollOffset -=
+                delta * scrollSpeed;
+    } else if (mouse.x >= 40 &&
+               mouse.x <= 540 &&
+               mouse.y >= 600 &&
+               mouse.y <= 850) {
+        unmatchedFundingScrollOffset -=
+                delta * scrollSpeed;
+    } else if (mouse.x >= 860 &&
+               mouse.x <= 1360 &&
+               mouse.y >= 600 &&
+               mouse.y <= 850) {
+        unmatchedAuditScrollOffset -=
+                delta * scrollSpeed;
+    }
+
+
+    clampScroll();
+}
+
+void LinkWindow::clampScroll() {
+    auto clamp =
+            [](float &value, float max) {
+        if (value < 0)
+            value = 0;
+
+        if (value > max)
+            value = max;
+    };
+
+
+    float matchedContentHeight =
+            matchedFundingCards.size() * 45.f;
+
+
+    float unmatchedFundingHeight =
+            unmatchedFundingCards.size() * 45.f;
+
+
+    float unmatchedAuditHeight =
+            unmatchedAuditCards.size() * 45.f;
+
+
+    clamp(
+        matchedScrollOffset,
+        std::max(
+            0.f,
+            matchedContentHeight - 450.f
+        )
+    );
+
+
+    clamp(
+        unmatchedFundingScrollOffset,
+        std::max(
+            0.f,
+            unmatchedFundingHeight - 250.f
+        )
+    );
+
+
+    clamp(
+        unmatchedAuditScrollOffset,
+        std::max(
+            0.f,
+            unmatchedAuditHeight - 250.f
+        )
+    );
+}
+
+void LinkWindow::render() {
+    window.clear(sf::Color(245, 248, 252));
+
+    drawMatchedColumns();
+
+    drawUnmatchedBoxes();
+
+    drawCards();
+
+    drawButtons();
+
+    window.display();
+}
+
+void LinkWindow::drawScrollBar(
+    float x,
+    float y,
+    float width,
+    float height,
+    float contentHeight,
+    float scrollOffset) {
+    // No scrollbar needed if everything fits.
+    if (contentHeight <= height)
+        return;
+
+    // Background track.
+    sf::RectangleShape track({width, height});
+    track.setPosition({x, y});
+    track.setFillColor(sf::Color(235, 235, 235));
+
+    window.draw(track);
+
+    // Thumb size.
+    float thumbHeight = height * (height / contentHeight);
+
+    // Don't let it become impossibly tiny.
+    thumbHeight = std::max(30.f, thumbHeight);
+
+    float maxScroll = contentHeight - height;
+
+    float thumbY =
+            y +
+            (scrollOffset / maxScroll) *
+            (height - thumbHeight);
+
+    sf::RectangleShape thumb({width, thumbHeight});
+    thumb.setPosition({x, thumbY});
+    thumb.setFillColor(sf::Color(120, 120, 120));
+
+    window.draw(thumb);
+}
+
+void LinkWindow::drawButtons() {
+    window.draw(generateButton);
+
+    sf::Text buttonText;
+    buttonText.setFont(font);
+    buttonText.setCharacterSize(22);
+    buttonText.setFillColor(sf::Color::White);
+    buttonText.setString("Generate Spreadsheet");
+
+    // Center the text
+    sf::FloatRect bounds = buttonText.getLocalBounds();
+    buttonText.setOrigin(
+        bounds.left + bounds.width / 2.f,
+        bounds.top + bounds.height / 2.f
+    );
+
+    buttonText.setPosition(
+        generateButton.getPosition().x + generateButton.getSize().x / 2.f,
+        generateButton.getPosition().y + generateButton.getSize().y / 2.f
+    );
+
+    window.draw(buttonText);
+}
+
+void LinkWindow::drawMatchedColumns() {
+    sf::RectangleShape header({1400.f, 46.f});
+    header.setFillColor(sf::Color(35, 98, 181));
+
+    window.draw(header);
+
+    sf::Text title;
+
+    title.setFont(font);
+    title.setFillColor(sf::Color::White);
+    title.setCharacterSize(32);
+    title.setString("Organization Matching");
+    title.setPosition({490, 1});
+
+    window.draw(title);
+
+    sf::RectangleShape leftBox({500, 450});
+    leftBox.setPosition({40, 90});
+    leftBox.setFillColor(sf::Color::White);
+    leftBox.setOutlineThickness(2);
+    leftBox.setOutlineColor(sf::Color(200, 210, 225));
+
+    window.draw(leftBox);
+
+    sf::RectangleShape rightBox({500, 450});
+    rightBox.setPosition({860, 90});
+    rightBox.setOutlineThickness(2.f);
+    rightBox.setOutlineColor(sf::Color(200, 210, 225));
+    rightBox.setFillColor(sf::Color::White);
+
+    window.draw(rightBox);
+
+    sf::Text leftTitle;
+    leftTitle.setFont(font);
+    leftTitle.setFillColor(sf::Color(40, 40, 40));
+    leftTitle.setCharacterSize(24);
+    leftTitle.setString("Funding");
+    leftTitle.setPosition({232, 55});
+
+    window.draw(leftTitle);
+
+    sf::Text rightTitle;
+    rightTitle.setFont(font);
+    rightTitle.setFillColor(sf::Color(40, 40, 40));
+    rightTitle.setCharacterSize(24);
+    rightTitle.setString("Audit Folder");
+    rightTitle.setPosition({1030, 55});
+
+    window.draw(rightTitle);
+
+    drawScrollBar(
+        1348.f,
+        90.f,
+        12.f,
+        450.f,
+        matchedFundingCards.size() * 45.f,
+        matchedScrollOffset);
+
+
+    float y = 95.f;
+
+
+    for (auto &card: matchedFundingCards) {
+        card.setPosition(
+            {60, y - matchedScrollOffset}
+        );
+
+        // if (card.selected) {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(100, 150, 255)
+        //     );
+        // } else {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(255, 255, 255)
+        //     );
+        // }
+
+        // window.draw(card.rectangle);
+        // window.draw(card.text);
+
+        y += 45.f;
+    }
+
+    y = 95.f;
+
+
+    for (auto &card: matchedAuditCards) {
+        card.setPosition(
+            {880, y - matchedScrollOffset}
+        );
+
+        // if (card.selected) {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(100, 150, 255)
+        //     );
+        // } else {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(255, 255, 255)
+        //     );
+        // }
+        //
+        // window.draw(card.rectangle);
+        // window.draw(card.text);
+
+        y += 45.f;
+    }
+    // drawCards();
+}
+
+void LinkWindow::drawUnmatchedBoxes() {
+    // Background boxes
+
+    sf::RectangleShape leftBox(sf::Vector2f(500, 250));
+    leftBox.setPosition(sf::Vector2f(40, 600));
+    leftBox.setFillColor(sf::Color::White);
+    leftBox.setOutlineThickness(2);
+    leftBox.setOutlineColor(sf::Color(200, 210, 225));
+
+    window.draw(leftBox);
+
+    sf::RectangleShape rightBox(sf::Vector2f(500, 250));
+    rightBox.setPosition(sf::Vector2f(860, 600));
+    rightBox.setFillColor(sf::Color::White);
+    rightBox.setOutlineThickness(2);
+    rightBox.setOutlineColor(sf::Color(200, 210, 225));
+    window.draw(rightBox);
+
+
+    // Titles
+
+    sf::Text leftTitle;
+
+    leftTitle.setFont(font);
+    leftTitle.setFillColor(sf::Color(40, 40, 40));
+    leftTitle.setCharacterSize(22);
+    leftTitle.setString(
+        "Unmatched Funding");
+
+    leftTitle.setPosition(
+        sf::Vector2f(180, 566));
+
+    window.draw(leftTitle);
+
+
+    sf::Text rightTitle;
+
+    rightTitle.setFont(font);
+    rightTitle.setFillColor(sf::Color(40, 40, 40));
+    rightTitle.setCharacterSize(22);
+    rightTitle.setString(
+        "Unmatched Audit");
+
+    rightTitle.setPosition(
+        sf::Vector2f(1010, 566));
+
+    window.draw(rightTitle);
+
+    drawScrollBar(
+        530.f,
+        600.f,
+        10.f,
+        250.f,
+        unmatchedFundingCards.size() * 45.f,
+        unmatchedFundingScrollOffset);
+
+    drawScrollBar(
+        1350.f,
+        600.f,
+        10.f,
+        250.f,
+        unmatchedAuditCards.size() * 45.f,
+        unmatchedAuditScrollOffset);
+
+    std::sort(unmatchedFundingCards.begin(), unmatchedFundingCards.end());
+    std::sort(unmatchedAuditCards.begin(), unmatchedAuditCards.end());
+
+    // Position and draw funding cards
+
+    float fundingY = 605.f;
+
+    for (auto &card: unmatchedFundingCards) {
+        card.setPosition(
+            sf::Vector2f(
+                60,
+                fundingY - unmatchedFundingScrollOffset
+            ));
+
+        // if (card.selected) {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(100, 150, 255)
+        //     );
+        // } else {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(255, 255, 255)
+        //     );
+        // }
+
+        // window.draw(card.rectangle);
+        // window.draw(card.text);
+
+        fundingY += 45.f;
+    }
+
+    // Position and draw Audit cards
+
+    float auditY = 605.f;
+
+    for (auto &card: unmatchedAuditCards) {
+        card.setPosition(
+            sf::Vector2f(
+                880,
+                auditY - unmatchedAuditScrollOffset
+            ));
+
+        // if (card.selected) {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(100, 150, 255)
+        //     );
+        // } else {
+        //     card.rectangle.setFillColor(
+        //         sf::Color(255, 255, 255)
+        //     );
+        // }
+
+        // window.draw(card.rectangle);
+        // window.draw(card.text);
+
+        auditY += 45.f;
+    }
+
+    // drawCards();
+}
+
+void LinkWindow::drawCards() {
+
+    for (auto& card: unmatchedAuditCards) {
+        if (card.rectangle.getPosition().y <= 810 && card.rectangle.getPosition().y >= 600) {
+            window.draw(card.rectangle);
+            card.isVisible = true;
+            if (card.text.getString().getSize() > 38) {
+                std::string tempFullStr = card.text.getString();
+                card.text.setString(tempFullStr.substr(0, 38) + "...");
+                window.draw(card.text);
+                card.text.setString(tempFullStr);
+            } else
+                window.draw(card.text);
+        } else
+            card.isVisible = false;
+    }
+    for (auto& card: unmatchedFundingCards) {
+         if (card.rectangle.getPosition().y <= 810 && card.rectangle.getPosition().y >= 600) {
+            window.draw(card.rectangle);
+            card.isVisible = true;
+            if (card.text.getString().getSize() > 38) {
+                std::string tempFullStr = card.text.getString();
+                card.text.setString(tempFullStr.substr(0, 38) + "...");
+                window.draw(card.text);
+                card.text.setString(tempFullStr);
+            } else
+                window.draw(card.text);
+        } else
+            card.isVisible = false;
+    }
+    for (auto& card: matchedAuditCards) {
+        if (card.rectangle.getPosition().y <= 500 && card.rectangle.getPosition().y >= 90) {
+            window.draw(card.rectangle);
+            card.isVisible = true;
+            if (card.text.getString().getSize() > 38) {
+                std::string tempFullStr = card.text.getString();
+                card.text.setString(tempFullStr.substr(0, 38) + "...");
+                window.draw(card.text);
+                card.text.setString(tempFullStr);
+            }
+            else
+                window.draw(card.text);
+        }
+        else
+            card.isVisible = false;
+    }
+    for (auto& card: matchedFundingCards) {
+        if (card.rectangle.getPosition().y <= 500 && card.rectangle.getPosition().y >= 90) {
+            window.draw(card.rectangle);
+            card.isVisible = true;
+            if (card.text.getString().getSize() > 38) {
+                std::string tempFullStr = card.text.getString();
+                card.text.setString(tempFullStr.substr(0, 38) + "...");
+                window.draw(card.text);
+                card.text.setString(tempFullStr);
+            } else
+                window.draw(card.text);
+        }
+        else
+            card.isVisible = false;
+    }
+}
+
+void LinkWindow::createCards() {
+    draggedCard = nullptr;
+
+    matchedFundingCards.clear();
+    matchedAuditCards.clear();
+
+    unmatchedFundingCards.clear();
+    unmatchedAuditCards.clear();
+
+    float y = 150;
+
+
+    for (size_t i = 0; i < matches.size(); i++) {
+        auto &match = matches[i];
+
+        if (match.fundingIndex != -1 && match.auditIndex != -1) {
+            OrganizationCard left;
+
+            if (i == selectedFundingMatchIndex)
+                left.selected = true;
+            left.matchIndex = i;
+            left.isFunding = true;
+
+            left.rectangle =
+                    sf::RectangleShape(
+                        {460, 35});
+
+            // std::cout << "Left: " << left.selected << std::endl;
+            if (left.selected)
+                left.rectangle.setFillColor(sf::Color(215, 232, 255));
+            else
+                left.rectangle.setFillColor(sf::Color::White);
+
+
+            left.text.setFont(font);
+            left.text.setFillColor(sf::Color(40, 40, 40));
+            left.text.setCharacterSize(18);
+
+            left.text.setString(
+                funding[match.fundingIndex]
+                .organizationName);
+
+
+            matchedFundingCards.push_back(left);
+
+
+            OrganizationCard right;
+
+            if (i == selectedAuditMatchIndex)
+                right.selected = true;
+            right.matchIndex = i;
+            right.isFunding = false;
+            right.rectangle = sf::RectangleShape({460, 35});
+
+            if (right.selected)
+                right.rectangle.setFillColor(sf::Color(215, 232, 255));
+            else
+                right.rectangle.setFillColor(sf::Color::White);
+
+
+            right.text.setFont(font);
+            right.text.setFillColor(sf::Color(40, 40, 40));
+            right.text.setCharacterSize(18);
+
+            right.text.setString(audits[match.auditIndex].organizationName);
+
+
+            matchedAuditCards.push_back(right);
+        } else if (match.fundingIndex != -1 && match.auditIndex == -1) {
+            // unmatched funding
+
+            OrganizationCard card;
+
+            if (i == selectedFundingMatchIndex)
+                card.selected = true;
+            card.matchIndex = i;
+            card.isFunding = true;
+
+            if (selectedFundingMatchIndex == i) {
+                card.selected = true;
+            }
+
+            card.rectangle =
+                    sf::RectangleShape(
+                        {460, 35});
+
+            if (card.selected)
+                card.rectangle.setFillColor(sf::Color(215, 232, 255));
+            else
+                card.rectangle.setFillColor(sf::Color::White);
+
+
+            card.text.setFont(font);
+            card.text.setFillColor(sf::Color(40, 40, 40));
+            card.text.setCharacterSize(18);
+
+            card.text.setString(
+                funding[match.fundingIndex]
+                .organizationName);
+
+
+            unmatchedFundingCards.push_back(card);
+        }
+
+        if (match.auditIndex != -1 && match.fundingIndex == -1) {
+            // unmatched audit
+
+            OrganizationCard card;
+
+            if (i == selectedAuditMatchIndex)
+                card.selected = true;
+            card.matchIndex = i;
+            card.isFunding = false;
+
+            if (selectedAuditMatchIndex == i) {
+                card.selected = true;
+            }
+
+            card.rectangle =
+                    sf::RectangleShape(
+                        {460, 35});
+
+            // std::cout << "Unmatched Audit: " << card.selected << std::endl;
+            if (card.selected)
+                card.rectangle.setFillColor(sf::Color(215, 232, 255));
+            else
+                card.rectangle.setFillColor(sf::Color::White);
+
+            card.text.setFont(font);
+            card.text.setFillColor(sf::Color(40, 40, 40));
+            card.text.setCharacterSize(18);
+
+            card.text.setString(audits[match.auditIndex].organizationName);
+
+            unmatchedAuditCards.push_back(card);
+        }
+    }
+}
+
+void LinkWindow::swapCards(
+    OrganizationCard &a,
+    OrganizationCard &b) {
+    auto &first =
+            matches[a.matchIndex];
+
+    auto &second =
+            matches[b.matchIndex];
+
+
+    if (a.isFunding == b.isFunding) {
+        // Same side: swap organizations
+
+        if (a.isFunding) {
+            std::swap(
+                first.fundingIndex,
+                second.fundingIndex);
+        } else {
+            std::swap(
+                first.auditIndex,
+                second.auditIndex);
+        }
+    } else {
+        // Opposite sides: create/reassign match
+
+        if (a.isFunding) {
+            int tempIndex = first.auditIndex;
+            first.auditIndex = second.auditIndex;
+
+            second.auditIndex = tempIndex;
+        } else {
+            int tempIndex = first.fundingIndex;
+            first.fundingIndex = second.fundingIndex;
+
+            second.fundingIndex = tempIndex;
+        }
+    }
+
+
+    first.userModified = true;
+    second.userModified = true;
+}
