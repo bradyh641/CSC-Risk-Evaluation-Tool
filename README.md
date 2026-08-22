@@ -1,10 +1,10 @@
 # CSC-Risk-Evaluation-Tool
 A Windows desktop application written in C++ that automates the extraction, comparison, and consolidation of financial information from nonprofit audit PDFs and CSV funding spreadsheets.
 
-The application parses financial reports, aggregates funding data, automatically matches organizations between data sources, allows users to manually resolve unmatched organizations through an interactive interface, and generates a formatted Excel workbook containing the final results. This program is intended for the financial department of a local government organization, hereby referred to as organization A.
+The application parses financial reports, aggregates funding data, automatically matches organizations between data sources, allows users to manually resolve unmatched organizations through an interactive interface, and generates a formatted Excel workbook containing the final results. This program is intended for the financial department of a local government organization, hereby referred to as CSC.
 
 ## Overview
-Organization A maintains its financial information across multiple systems. Audit reports from organizations funded by organization A often exist as PDF documents while funding information is stored separately in CSV spreadsheets. Because of the quantity of organizations and limitations of standard file storage, this is one of the most slow and error-prone operations reported by the organization A financial department.
+CSC maintains its financial information across multiple systems. Audit reports from organizations funded by CSC often exist as PDF documents while funding information is stored separately in CSV spreadsheets. Because of the quantity of organizations and limitations of standard file storage, this is one of the most slow and error-prone operations reported by the CSC financial department.
 
 This application streamlines the process by:
 - Extracting financial data from audit PDFs
@@ -72,7 +72,7 @@ Choose:
 - the directory containing organization folders
 - the CSV spreadsheet file containing funding data
 
-For organization A employees: The "directory containing organization folders" is "[organization_A] ORGANIZATIONS" within your Box drive. Be sure to have Box synced to your machine.
+For CSC employees: The "directory containing organization folders" is "CSC ORGANIZATIONS" within your Box drive. Be sure to have Box synced to your machine.
 
 ### 2. Process Files
 The application will:
