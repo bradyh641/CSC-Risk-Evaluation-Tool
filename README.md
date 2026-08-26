@@ -4,13 +4,13 @@ A Windows desktop application written in C++ that automates the extraction, comp
 The application parses financial reports, aggregates funding data, automatically matches organizations between data sources, allows users to manually resolve unmatched organizations through an interactive interface, and generates a formatted Excel workbook containing the final results. This program is intended for the financial department of a local government organization, hereby referred to as CSC.
 
 ## Overview
-CSC maintains its financial information across multiple systems. Audit reports from organizations funded by CSC often exist as PDF documents while funding information is stored separately in CSV spreadsheets. Because of the quantity of organizations and limitations of standard file storage, this is one of the most slow and error-prone operations reported by the CSC financial department.
+CSC maintains its financial information across multiple systems. Audit reports from organizations funded by CSC often exist as PDF documents while funding information is stored separately in CSV spreadsheets. Because of the quantity of organizations and volume of data, this is a great opportunity to aid the process with automation and reduce the amount of time to complete this financial analysis.
 
 This application streamlines the process by:
 - Extracting financial data from audit PDFs
 - Reading funding information from CSV spreadsheets
 - Matching organizations' audit files to spreadsheet entries (included for the possibility of varying naming conventions across platforms)
-- Calculating the values used to determine an organization's overall risk
+- Calculating the percentage funded used to assess an organization's risk
 - Producing a consolidated Excel report
 
 The application was designed to reduce manual data entry while maintaining user control over the final matching process.
@@ -43,7 +43,7 @@ The application was designed to reduce manual data entry while maintaining user 
 ### Spreadsheet Generation
 - Produces a formatted Excel workbook (.xlsx)
 - Includes funding totals and revenue totals
-- Includes whether an organization has an audit
+- Includes whether an organization has an audit report
 
 ## Installation
 ### Downloading a Release
@@ -123,7 +123,7 @@ The workbook contains consolidated funding and revenue information for each orga
 
 ### Report Generation
 - After all matches have been finalized, the application creates a new Excel workbook containing the consolidated financial information  
-- If the application has been run before, the existing workbook is appended to in a new sheet  
+- If the application has been run before, a new sheet is appended to the existing workbook  
 
 ## Technologies Used
 ### SFML
